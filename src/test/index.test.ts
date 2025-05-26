@@ -62,9 +62,7 @@ describe('logger middleware', () => {
     const middleware = logger();
     middleware(req, res, next);
     await res._finishHandler();
-    expect(console.log).toHaveBeenCalledWith(
-      JSON.stringify({ formatted: true }, null, 2),
-    );
+    expect(console.log).toHaveBeenCalledWith({ formatted: true });
     expect(console.error).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalled();
   });
@@ -77,9 +75,7 @@ describe('logger middleware', () => {
     });
     next(new Error('Some error'));
     await res._finishHandler();
-    expect(console.error).toHaveBeenCalledWith(
-      JSON.stringify({ formatted: true }, null, 2),
-    );
+    expect(console.error).toHaveBeenCalledWith({ formatted: true });
   });
 
   test('logs with console.error when statusCode >= 400', async () => {
@@ -87,9 +83,7 @@ describe('logger middleware', () => {
     const middleware = logger();
     middleware(req, res, next);
     await res._finishHandler();
-    expect(console.error).toHaveBeenCalledWith(
-      JSON.stringify({ formatted: true }, null, 2),
-    );
+    expect(console.error).toHaveBeenCalledWith({ formatted: true });
     expect(console.log).not.toHaveBeenCalled();
   });
 

@@ -101,11 +101,9 @@ const logger = (options: ApiLoggerOptions = {}) => {
         error,
       });
 
-      if (error || res.statusCode >= 400) {
-        console.error(JSON.stringify(logData, null, 2));
-      } else {
-        console.log(JSON.stringify(logData, null, 2));
-      }
+      const logFn =
+        error || res.statusCode >= 400 ? console.error : console.log;
+      logFn(logData);
     };
 
     res.on('finish', log);

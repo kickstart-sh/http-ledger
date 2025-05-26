@@ -1,6 +1,6 @@
 {
   "name": "http-ledger",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "An Express middleware for comprehensive API request and response logging with beautified console output.",
   "main": "dist/index.js",
   "module": "dist/esm/index.js",
