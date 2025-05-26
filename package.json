@@ -37,6 +37,10 @@
   ],
   "author": "Shrinath Nayak <shrinathnayak07@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kickstart-sh/http-ledger.git"
+  },
   "dependencies": {
     "tslib": "^2.3.1"
   },
