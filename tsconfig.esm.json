@@ -4,6 +4,8 @@
     "module": "esnext",
     "outDir": "./dist/esm",
     "declarationDir": "./dist/esm",
-    "target": "es2019"
+    "target": "es2020",
+    "moduleResolution": "node",
+    "importHelpers": false
   }
 }

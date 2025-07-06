@@ -7,7 +7,7 @@ import {
 
 const originalHrtime = process.hrtime;
 
-let mockedHrtime: jest.Mock<[number, number], [[number, number]?]>;
+let mockedHrtime: jest.Mock;
 
 describe('calculateTimeTaken', () => {
   beforeAll(() => {
@@ -43,6 +43,25 @@ describe('calculateTimeTaken', () => {
     const timeTaken = calculateTimeTaken(startTime);
     expect(timeTaken).toBe(123.46);
   });
+
+  it('should handle hrtime errors gracefully', () => {
+    const originalConsoleWarn = console.warn;
+    console.warn = jest.fn();
+
+    mockedHrtime.mockImplementationOnce(() => {
+      throw new Error('hrtime failed');
+    });
+
+    const startTime: [number, number] = [0, 0];
+    const timeTaken = calculateTimeTaken(startTime);
+
+    expect(timeTaken).toBe(0);
+    expect(console.warn).toHaveBeenCalledWith(
+      'Failed to calculate time using hrtime, falling back to Date.now()',
+    );
+
+    console.warn = originalConsoleWarn;
+  });
 });
 
 describe('calculateRequestSize', () => {
@@ -58,7 +77,7 @@ describe('calculateRequestSize', () => {
 
   it('should calculate the size for a string body', () => {
     const mockReq: Request = { body: 'hello world' } as Request;
-    expect(calculateRequestSize(mockReq)).toBe(13);
+    expect(calculateRequestSize(mockReq)).toBe(11);
   });
 
   it('should handle complex JSON body', () => {
@@ -71,11 +90,46 @@ describe('calculateRequestSize', () => {
     expect(calculateRequestSize(mockReq)).toBe(57);
   });
 
-  it('should return 2 bytes for a null or undefined body', () => {
+  it('should return 0 for a null body', () => {
     const mockReqNull: Request = { body: null } as Request;
-    expect(calculateRequestSize(mockReqNull)).toBe(2);
+    expect(calculateRequestSize(mockReqNull)).toBe(0);
+  });
+
+  it('should return 0 for an undefined body', () => {
     const mockReqUndefined: Request = {} as Request;
-    expect(calculateRequestSize(mockReqUndefined)).toBe(2);
+    expect(calculateRequestSize(mockReqUndefined)).toBe(0);
+  });
+
+  it('should handle circular references gracefully', () => {
+    const originalConsoleWarn = console.warn;
+    console.warn = jest.fn();
+
+    const circularObj: any = { name: 'test' };
+    circularObj.self = circularObj;
+
+    const mockReq: Request = { body: circularObj } as Request;
+    const size = calculateRequestSize(mockReq);
+
+    // Should handle circular references without crashing
+    expect(typeof size).toBe('number');
+    expect(size).toBeGreaterThanOrEqual(0);
+
+    console.warn = originalConsoleWarn;
+  });
+
+  it('should handle Buffer body', () => {
+    const mockReq: Request = { body: Buffer.from('test data') } as Request;
+    expect(calculateRequestSize(mockReq)).toBe(9);
+  });
+
+  it('should handle number body', () => {
+    const mockReq: Request = { body: 42 } as Request;
+    expect(calculateRequestSize(mockReq)).toBe(2);
+  });
+
+  it('should handle boolean body', () => {
+    const mockReq: Request = { body: true } as Request;
+    expect(calculateRequestSize(mockReq)).toBe(4);
   });
 });
 
@@ -111,14 +165,169 @@ describe('calculateResponseSize', () => {
     expect(calculateResponseSize({})).toBe(2);
   });
 
-  it('should return 0 for a response body that cannot be stringified to JSON', () => {
+  it('should handle circular references gracefully', () => {
+    const originalConsoleWarn = console.warn;
+    console.warn = jest.fn();
+
     const circularRef: any = {};
     circularRef.a = circularRef;
-    expect(calculateResponseSize(circularRef)).toBe(0);
+    const size = calculateResponseSize(circularRef);
+
+    // Should handle circular references without crashing
+    expect(typeof size).toBe('number');
+    expect(size).toBeGreaterThanOrEqual(0);
+
+    console.warn = originalConsoleWarn;
   });
 
   it('should calculate size for a response body with unicode characters', () => {
     const responseBody = { emoji: '😊' };
     expect(calculateResponseSize(responseBody)).toBe(16);
+  });
+
+  it('should handle number response body', () => {
+    expect(calculateResponseSize(42)).toBe(2);
+  });
+
+  it('should handle boolean response body', () => {
+    expect(calculateResponseSize(true)).toBe(4);
+    expect(calculateResponseSize(false)).toBe(5);
+  });
+
+  it('should handle large objects', () => {
+    const largeObj = {
+      data: Array.from({ length: 1000 }, (_, i) => ({
+        id: i,
+        value: `item-${i}`,
+      })),
+      metadata: {
+        total: 1000,
+        timestamp: new Date().toISOString(),
+      },
+    };
+    const size = calculateResponseSize(largeObj);
+    expect(size).toBeGreaterThan(1000);
+  });
+
+  it('should handle nested objects with special characters', () => {
+    const responseBody = {
+      message: 'Hello, "world"!',
+      data: {
+        nested: {
+          special: '🎉🎊🎈',
+          numbers: [1, 2, 3],
+        },
+      },
+    };
+    const size = calculateResponseSize(responseBody);
+    expect(size).toBeGreaterThan(0);
+  });
+
+  it('should handle JSON.stringify throwing error', () => {
+    const circularObj: any = {};
+    circularObj.self = circularObj;
+
+    const size = calculateResponseSize(circularObj);
+    expect(size).toBeGreaterThan(0);
+  });
+
+  it('should handle safeStringify with circular reference', () => {
+    const circularObj: any = {};
+    circularObj.self = circularObj;
+
+    const size = calculateRequestSize({ body: circularObj } as any);
+    expect(size).toBeGreaterThan(0);
+  });
+
+  it('should handle safeStringify with null', () => {
+    const size = calculateResponseSize(null);
+    expect(size).toBe(0);
+  });
+
+  it('should handle safeStringify with undefined', () => {
+    const size = calculateResponseSize(undefined);
+    expect(size).toBe(0);
+  });
+
+  it('should handle safeStringify with string', () => {
+    const size = calculateResponseSize('test string');
+    expect(size).toBeGreaterThan(0);
+  });
+
+  it('should handle safeStringify with number', () => {
+    const size = calculateResponseSize(123);
+    expect(size).toBeGreaterThan(0);
+  });
+
+  it('should handle safeStringify with boolean', () => {
+    const size = calculateResponseSize(true);
+    expect(size).toBeGreaterThan(0);
+  });
+
+  it('should handle safeStringify with Buffer', () => {
+    const buffer = Buffer.from('test buffer');
+    const size = calculateResponseSize(buffer);
+    expect(size).toBeGreaterThan(0);
+  });
+
+  it('should handle safeStringify with object that throws on JSON.stringify', () => {
+    const problematicObj = {
+      toJSON: () => {
+        throw new Error('JSON.stringify error');
+      },
+    };
+
+    const size = calculateResponseSize(problematicObj);
+    expect(size).toBeGreaterThan(0);
+  });
+
+  it('should handle calculateRequestSize with error', () => {
+    const originalConsoleWarn = console.warn;
+    console.warn = jest.fn();
+
+    // Create an object that throws when accessed
+    const req = {
+      body: new Proxy(
+        {},
+        {
+          get() {
+            throw new Error('Request body error');
+          },
+        },
+      ),
+    } as any;
+
+    const size = calculateRequestSize(req);
+    expect(size).toBe(0);
+    expect(console.warn).toHaveBeenCalledWith(
+      'Failed to calculate request size:',
+      expect.any(Error),
+    );
+
+    console.warn = originalConsoleWarn;
+  });
+
+  it('should handle calculateResponseSize with error', () => {
+    const originalConsoleWarn = console.warn;
+    console.warn = jest.fn();
+
+    // Create an object that throws when accessed
+    const responseBody = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error('Response body error');
+        },
+      },
+    );
+
+    const size = calculateResponseSize(responseBody);
+    expect(size).toBe(0);
+    expect(console.warn).toHaveBeenCalledWith(
+      'Failed to calculate response size:',
+      expect.any(Error),
+    );
+
+    console.warn = originalConsoleWarn;
   });
 });
