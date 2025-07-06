@@ -30,7 +30,7 @@
     "build:cjs": "tsc --project tsconfig.json",
     "build:esm": "tsc --project tsconfig.esm.json",
     "format": "prettier --write ./src",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "build": "npm run clean && npm run build:cjs && npm run build:esm",
     "prepublishOnly": "npm run build && npm test",
     "bundlesize": "npm run build && node scripts/bundlesize.js"
