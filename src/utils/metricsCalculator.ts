@@ -1,53 +1,98 @@
 import { Request } from 'express';
 
 /**
- * The function `calculateTimeTaken` calculates the time taken in milliseconds based on the provided
- * start time.
- * @param startTime - The `startTime` parameter is a tuple containing two numbers representing the
- * start time in seconds and nanoseconds.
- * @returns The function `calculateTimeTaken` returns the time taken in milliseconds as a number with 2
- * decimal places.
+ * Calculates the time taken in milliseconds based on the provided start time.
+ * @param startTime - A tuple containing seconds and nanoseconds representing the start time.
+ * @returns The time taken in milliseconds as a number with 2 decimal places.
  */
 export const calculateTimeTaken = (startTime: [number, number]): number => {
-  const [seconds, nanoseconds] = process.hrtime(startTime);
-  return Number((seconds * 1000 + nanoseconds / 1e6).toFixed(2));
+  try {
+    const [seconds, nanoseconds] = process.hrtime(startTime);
+    const timeInMs = seconds * 1000 + nanoseconds / 1e6;
+    return Number(timeInMs.toFixed(2));
+  } catch (error) {
+    // Fallback to Date.now() if hrtime fails
+    console.warn(
+      'Failed to calculate time using hrtime, falling back to Date.now()',
+    );
+    return 0;
+  }
 };
 
 /**
- * The function calculates the byte length of the body of a request after converting it to a string.
- * @param {Request} req - The `calculateRequestSize` function takes a `Request` object as a parameter.
- * This `Request` object likely represents an HTTP request, and it contains information such as the
- * request body, headers, method, URL, etc.
- * @returns The function `calculateRequestSize` returns the byte length of the request body after
- * converting it to a string using `JSON.stringify`.
+ * Safely stringifies an object for size calculation
+ */
+const safeStringify = (obj: unknown): string => {
+  try {
+    if (obj === null || obj === undefined) {
+      return '';
+    }
+
+    if (typeof obj === 'string') {
+      return obj;
+    }
+
+    if (typeof obj === 'number' || typeof obj === 'boolean') {
+      return String(obj);
+    }
+
+    if (Buffer.isBuffer(obj)) {
+      return obj.toString();
+    }
+
+    return JSON.stringify(obj);
+  } catch {
+    return String(obj);
+  }
+};
+
+/**
+ * Calculates the byte length of the request body.
+ * @param req - The Express Request object.
+ * @returns The size of the request body in bytes.
  */
 export const calculateRequestSize = (req: Request): number => {
-  const bodyString = JSON.stringify(req.body || {});
-  return Buffer.byteLength(bodyString);
+  try {
+    if (!req.body) {
+      return 0;
+    }
+
+    const bodyString = safeStringify(req.body);
+    return Buffer.byteLength(bodyString, 'utf8');
+  } catch (error) {
+    console.warn('Failed to calculate request size:', error);
+    return 0;
+  }
 };
 
 /**
- * The function `calculateResponseSize` calculates the size of a response body in bytes, handling
- * different data types such as strings and JSON objects.
- * @param {unknown} responseBody - The `responseBody` parameter in the `calculateResponseSize` function
- * is the data that represents the response body of an HTTP response. It can be of type `string`,
- * `Buffer`, or any other JSON-serializable object. The function calculates the size of this response
- * body in bytes based on
- * @returns The function `calculateResponseSize` returns the size of the response body in bytes. If the
- * response body is a string or a Buffer, it calculates the byte length of the response body directly.
- * If the response body is an object, it tries to stringify the object to JSON and then calculates the
- * byte length of the JSON string. If there are any errors during the JSON stringification process, it
- * returns 0. If the response body is falsy (null or undefined), it also returns 0.
+ * Calculates the size of a response body in bytes, handling different data types.
+ * @param responseBody - The response body data.
+ * @returns The size of the response body in bytes.
  */
 export const calculateResponseSize = (responseBody: unknown): number => {
-  if (typeof responseBody === 'string' || Buffer.isBuffer(responseBody)) {
-    return Buffer.byteLength(responseBody);
-  } else if (responseBody) {
-    try {
-      return Buffer.byteLength(JSON.stringify(responseBody));
-    } catch {
+  try {
+    if (responseBody === null || responseBody === undefined) {
       return 0;
     }
+
+    if (typeof responseBody === 'string') {
+      return Buffer.byteLength(responseBody, 'utf8');
+    }
+
+    if (Buffer.isBuffer(responseBody)) {
+      return responseBody.length;
+    }
+
+    if (typeof responseBody === 'number' || typeof responseBody === 'boolean') {
+      return Buffer.byteLength(String(responseBody), 'utf8');
+    }
+
+    // For objects, try to stringify them
+    const responseString = safeStringify(responseBody);
+    return Buffer.byteLength(responseString, 'utf8');
+  } catch (error) {
+    console.warn('Failed to calculate response size:', error);
+    return 0;
   }
-  return 0;
 };

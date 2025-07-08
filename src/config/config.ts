@@ -1,12 +1,4 @@
-interface Config {
-  logBody: boolean;
-  logResponse: boolean;
-  retryLimit: number;
-  excludedHeaders: string[];
-  debug: boolean;
-  externalApiUrl?: string;
-  getIpInfo?: any;
-}
+import { Config } from '../types';
 
 const config: Config = {
   logBody: true,

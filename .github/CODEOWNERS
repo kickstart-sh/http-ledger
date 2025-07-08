@@ -1,0 +1,26 @@
+# Global code owners
+* @shrinathnayak07
+
+# Documentation
+*.md @shrinathnayak07
+README.md @shrinathnayak07
+
+# Configuration files
+package.json @shrinathnayak07
+tsconfig*.json @shrinathnayak07
+jest.config.js @shrinathnayak07
+eslint.config.js @shrinathnayak07
+
+# GitHub Actions workflows
+.github/workflows/ @shrinathnayak07
+
+# Source code
+src/ @shrinathnayak07
+
+# Tests
+src/test/ @shrinathnayak07
+**/*.test.ts @shrinathnayak07
+**/*.spec.ts @shrinathnayak07
+
+# Scripts
+scripts/ @shrinathnayak07 

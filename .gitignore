@@ -12,6 +12,7 @@ yarn-error.log*
 dist/
 build/
 out/
+coverage/
 # Dependency lock files
 package-lock.json
 yarn.lock
